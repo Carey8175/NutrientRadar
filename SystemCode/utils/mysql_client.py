@@ -1,7 +1,8 @@
 import logging
 import pymysql
+import pandas as pd
 
-from SystemCode.configs.basic import LOG_LEVEL
+from SystemCode.configs.basic import LOG_LEVEL, FOOD_NUTRITION_CSV_PATH
 from SystemCode.configs.database import *
 
 
@@ -95,7 +96,7 @@ class MySQLClient:
                 base_url VARCHAR(255),
                 model VARCHAR(255),
                 height INT,
-                width INT,
+                weight INT,
                 age INT,
                 `group` VARCHAR(255),
                 allergy VARCHAR(255)
@@ -115,6 +116,8 @@ class MySQLClient:
                 VC DECIMAL(10, 2),
                 VA DECIMAL(10, 2),
                 Fiber DECIMAL(10, 2),
+                AverageVolume DECIMAL(10, 2),
+                AverageDensity DECIMAL(10, 2),
                 DensityArea DECIMAL(10, 2)
             );
 
@@ -123,7 +126,7 @@ class MySQLClient:
 
         query = """
             CREATE TABLE IF NOT EXISTS NutrientHistory (
-                user_id VARCHAR(255) PRIMARY KEY,
+                user_id VARCHAR(255),
                 Datetime TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FoodClasses VARCHAR(255),
                 Calories DECIMAL(10, 2),
@@ -139,6 +142,8 @@ class MySQLClient:
             );
         """
         self.execute_query_(query, (), commit=True)
+        
+        self.init_food_nutrition()
 
     def check_user_exist_by_name(self, user_name):
         query = "SELECT user_name FROM User WHERE user_name = %s"
@@ -174,7 +179,22 @@ class MySQLClient:
         self.execute_query_(query, values, commit=True)
         return True
 
+    def init_food_nutrition(self):
+        """ init food nutrition table """
+        df = pd.read_csv(FOOD_NUTRITION_CSV_PATH)
+        # drop some columns
+        df.drop(df.columns[[0, 2, 12,]], axis=1, inplace=True)
+
+        nutrition_data = df.values.tolist()
+
+        query = """
+            INSERT INTO FoodNutrient(Food_name, Calories, Protein, Fat, Carbs, Calcium, Iron, VC, VA, Fiber, 
+            AverageVolume, AverageDensity, DensityArea)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """
+        self.execute_query_(query, nutrition_data, commit=True, many=True)
+
+        
 if __name__ == '__main__':
     client = MySQLClient()
-
 
