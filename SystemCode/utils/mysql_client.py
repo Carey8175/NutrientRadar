@@ -142,8 +142,42 @@ class MySQLClient:
             );
         """
         self.execute_query_(query, (), commit=True)
-
+        
         self.init_food_nutrition()
+
+    def check_user_exist_by_name(self, user_name):
+        query = "SELECT user_name FROM User WHERE user_name = %s"
+        result = self.execute_query_(query, (user_name,), fetch=True)
+        return result is not None and len(result) > 0
+
+    def add_user_(self, user_id, user_name=None):
+        query = "INSERT INTO User (user_id, user_name) VALUES (%s, %s)"
+        self.execute_query_(query, (user_id, user_name), commit=True)
+        return user_id
+
+    def get_user_info(self, user_id):
+        query = "SELECT * FROM User WHERE user_id = %s"
+        result = self.execute_query_(query, (user_id,), fetch=True)
+        return result
+
+    def update_user_info(self, user_id, user_info_dict):
+        allowed_fields = ['height', 'weight', 'age', '`group`', 'allergy']
+        set_clauses = []
+        values = []
+
+        for field in allowed_fields:
+            if field in user_info_dict:
+                set_clauses.append(f"{field} = %s")
+                values.append(user_info_dict[field])
+
+        if not set_clauses:
+            return False
+
+        set_clause = ", ".join(set_clauses)
+        query = "UPDATE User SET {} WHERE user_id = %s".format(set_clause)
+        values.append(user_id)
+        self.execute_query_(query, values, commit=True)
+        return True
 
     def init_food_nutrition(self):
         """ init food nutrition table """
@@ -160,7 +194,7 @@ class MySQLClient:
         """
         self.execute_query_(query, nutrition_data, commit=True, many=True)
 
-
+        
 if __name__ == '__main__':
     client = MySQLClient()
 
