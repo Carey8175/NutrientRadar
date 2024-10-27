@@ -55,12 +55,12 @@ async def handle_options_request(request):
 
 # select ------------------------------------------------------------------------------------------------
 
-
 # update ------------------------------------------------------------------------------------------------
-
+app.add_route(update_user_info, "/api/v1/update/update_user_info", methods=['POST'])  # tags=["更新用户信息"]
 
 # search ------------------------------------------------------------------------------------------------
 app.add_route(login, "/api/v1/search/login", methods=['POST'])  # tags=["登录"]
+app.add_route(get_user_info, "/api/v1/search/get_user_info", methods=['POST'])  # tags=["获取用户信息"]
 
 # chat---------------------------------------------------------------------------------------------------
 
@@ -80,5 +80,5 @@ app.add_route(login, "/api/v1/search/login", methods=['POST'])  # tags=["登录"
 
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=8777, access_log=False)
+    app.run(host='0.0.0.0', port=18080, access_log=False)
 

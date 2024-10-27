@@ -150,6 +150,30 @@ class MySQLClient:
         self.execute_query_(query, (user_id, user_name), commit=True)
         return user_id
 
+    def get_user_info(self, user_id):
+        query = "SELECT * FROM User WHERE user_id = %s"
+        result = self.execute_query_(query, (user_id,), fetch=True)
+        return result
+
+    def update_user_info(self, user_id, user_info_dict):
+        allowed_fields = ['api_key', 'base_url', 'model', 'height', 'weight', 'age', '`group`', 'allergy']
+        set_clauses = []
+        values = []
+
+        for field in allowed_fields:
+            if field in user_info_dict:
+                set_clauses.append(f"{field} = %s")
+                values.append(user_info_dict[field])
+
+        if not set_clauses:
+            return False
+
+        set_clause = ", ".join(set_clauses)
+        query = "UPDATE User SET {} WHERE user_id = %s".format(set_clause)
+        values.append(user_id)
+        self.execute_query_(query, values, commit=True)
+        return True
+
 if __name__ == '__main__':
     client = MySQLClient()
 
