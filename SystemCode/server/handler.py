@@ -47,28 +47,33 @@ async def add_new_user(req: sanic_request):
     user_name = safe_get(req, 'user_name')
     user_dict = safe_get(req, 'user_dict')
     if not user_name:
-        return sanic_json({"code": 2002, "msg": f'输入非法！request.json：{req.json}，请检查！'})
+        return sanic_json({"code": 2002, "status": None, "msg": f'输入非法！request.json：{req.json}，请检查！'})
     if mysql_client.check_user_exist_by_name(user_name):
-        return sanic_json({"code": 2001, "msg": f'用户名{user_name}已存在，请更换！'})
+        return sanic_json({"code": 2001, "status": None, "msg": f'用户名{user_name}已存在，请更换！'})
 
     if not user_dict:
-        return sanic_json({"code": 2002, "msg": f'输入非法！request.json：{req.json}，请检查！'})
+        return sanic_json({"code": 2002, "status": None, "msg": f'输入非法！request.json：{req.json}，请检查！'})
     if type(user_dict) == str:
         try:
             user_dict_str = user_dict
             user_dict = json.loads(user_dict_str)
         except Exception as e:
             logging.error("[ERROR] user_dict is not a valid json string")
-            return sanic_json({"code": 2003, "msg": f'user_dict内容缺失！request.json：{req.json}，请检查！'})
+            return sanic_json({"code": 2003, "status": None, "msg": f'user_dict内容缺失！request.json：{req.json}，请检查！'})
     if type(user_dict) != dict:
-        return sanic_json({"code": 2003, "msg": f'user_dict格式错误！request.json：{req.json}，请检查！'})
+        return sanic_json({"code": 2003, "status": None, "msg": f'user_dict格式错误！request.json：{req.json}，请检查！'})
 
-    #value in dict can not be null
+    # value in dict can not be null
     for key in user_dict.keys():
         if key not in ['height', 'weight', 'age', 'group', 'allergy']:
-            return sanic_json({"code": 2003, "msg": f'user_dict_key错误！request.json：{req.json}，请检查！'})
+            return sanic_json({"code": 2003, "status": None, "msg": f'user_dict_key错误！request.json：{req.json}，请检查！'})
         if user_dict[key] is None:
-            return sanic_json({"code": 2003, "msg": f'user_dict内容缺失！request.json：{req.json}，请检查！'})
+            return sanic_json({"code": 2003, "status": None, "msg": f'user_dict内容缺失！request.json：{req.json}，请检查！'})
+
+    # value of height, weight, age should be int, group should be str, allergy should be str
+    if not isinstance(user_dict['height'], int) or not isinstance(user_dict['weight'], int) or not isinstance(user_dict['age'], int) or not isinstance(user_dict['group'], str) or not isinstance(user_dict['allergy'], str):
+        return sanic_json({"code": 2003, "status": None, "msg": f'user_dict_value错误！request.json：{req.json}，请检查！'})
+
 
     # generate user_id
     user_id = 'U' + uuid.uuid4().hex
