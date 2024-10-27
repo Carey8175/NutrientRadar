@@ -1,13 +1,16 @@
 import uuid
+import json
 import logging
 from sanic.response import json as sanic_json
 from sanic import request as sanic_request
-from SystemCode.utils.mysql_client import MYSQL_HOST
 from SystemCode.utils.general_utils import *
-from SystemCode.utils import mysql_client
+from SystemCode.utils.mysql_client import MySQLClient
+from SystemCode.configs.basic import *
+from openai import OpenAI
 
+logging.basicConfig(level=LOG_LEVEL, format='%(asctime)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s', force=True)
 
-mysql_client = mysql_client.MySQLClient()
+mysql_client = MySQLClient()
 #--------------------User-------------------------
 
 async def login(req: sanic_request):
@@ -18,29 +21,172 @@ async def login(req: sanic_request):
     user_name = safe_get(req, 'user_name')
     if user_name is None:
         return sanic_json({"code": 2002, "msg": f'输入非法！request.json：{req.json}，请检查！'})
+
+    status = mysql_client.check_user_exist_by_name(user_name)
+    if not status:
+        return sanic_json({"code": 200, "msg": f'用户名不存在，请检查！', "status": None, "user_id": None, "api_key": None, "base_url": None, "model": None, "height": None, "weight": None, "age": None, "group": None, "allergy": None})
+
+    sql = "SELECT user_id FROM User WHERE user_name = %s"
+    result = mysql_client.execute_query_(sql, (user_name,), fetch=True)
+    user_id = result[0][0]
+
+    info = mysql_client.get_chat_information(user_id)
+
+    logging.info("[API]-[login] user_id: %s", user_id)
+    return sanic_json({"code": 200, "msg": "success log in", "status": True, "user_id": user_id
+                       , "api_key": info[0][0], "base_url": info[0][1], "model": info[0][2], "height": info[0][3], "weight": info[0][4], "age": info[0][5], "group": info[0][6], "allergy": info[0][7]})
+
+
+async def add_new_user(req: sanic_request):
+    """
+    user_name， user_dict
+    add new user into mysql
+    """
+    user_name = safe_get(req, 'user_name')
+    user_dict = safe_get(req, 'user_dict')
+    if not user_name:
+        return sanic_json({"code": 2002, "msg": f'输入非法！request.json：{req.json}，请检查！'})
     if mysql_client.check_user_exist_by_name(user_name):
         return sanic_json({"code": 2001, "msg": f'用户名{user_name}已存在，请更换！'})
+
+    if not user_dict:
+        return sanic_json({"code": 2002, "msg": f'输入非法！request.json：{req.json}，请检查！'})
+    if type(user_dict) == str:
+        try:
+            user_dict_str = user_dict
+            user_dict = json.loads(user_dict_str)
+        except Exception as e:
+            logging.error("[ERROR] user_dict is not a valid json string")
+            return sanic_json({"code": 2003, "msg": f'user_dict内容缺失！request.json：{req.json}，请检查！'})
+    if type(user_dict) != dict:
+        return sanic_json({"code": 2003, "msg": f'user_dict格式错误！request.json：{req.json}，请检查！'})
+
+    #value in dict can not be null
+    for key in user_dict.keys():
+        if key not in ['height', 'weight', 'age', 'group', 'allergy']:
+            return sanic_json({"code": 2003, "msg": f'user_dict_key错误！request.json：{req.json}，请检查！'})
+        if user_dict[key] is None:
+            return sanic_json({"code": 2003, "msg": f'user_dict内容缺失！request.json：{req.json}，请检查！'})
+
     # generate user_id
     user_id = 'U' + uuid.uuid4().hex
 
-    mysql_client.add_user_(user_id, user_name)
+    mysql_client.add_user_(user_id, user_dict, user_name)
     logging.info("[API]-[add new user] user_id: %s", user_id)
-    return sanic_json({"code": 200, "msg": "success add user, id: {}".format(user_id), "user_id": user_id})
+    return sanic_json({"code": 200, "msg": "success add user, id: {}".format(user_id), "status": True, "user_id":user_id, "user_name": user_name, "user_dict": user_dict})
 
 
 async def analyze_nutrition(req: sanic_request):
+    """
+    user_id,nutrition_list
+    log in
+    """
+    nutrition_list = safe_get(req, 'nutrition_list')
+    if nutrition_list is None:
+        return sanic_json({"code": 2002, "msg": f'输入非法！request.json：{req.json}，请检查！'})
+    result = mysql_client.analyze_nutrition_(nutrition_list)
+    logging.info("[API]-[analyze nutrition] nutrition_list: %s, result: %s", nutrition_list, result)
+    return sanic_json({"code": 200, "msg": "success analyze nutrition", "result": result})
 
 
-async def update_history(req: sanic_request):
+async def add_history(req: sanic_request):
+    """
+    user_id nutrition_dict
 
+    nutrition_dict = {"Food_name1": [1, 2, 3, 4, 5, 6, 7, 8, 9],
+                      "Food_name2": [2, 3, 4, 5, 6, 7, 8, 9, 0]}
+    add history
+    """
+    user_id = safe_get(req, 'user_id')
+    nutrition_dict = safe_get(req, 'nutrition_dict')
+    if user_id is None or nutrition_dict is None:
+        return sanic_json({"code": 2002, "msg": f'输入非法！request.json：{req.json}，请检查！'})
+    if not mysql_client.check_user_exist_by_id(user_id):
+        return sanic_json({"code": 2001, "msg": f'用户{user_id}不存在，请检查！'})
 
-async def delete_history(req: sanic_request):
+    if type(nutrition_dict) == str:
+        try:
+            nutrition_dict_str = nutrition_dict
+            nutrition_dict = json.loads(nutrition_dict_str)
+        except Exception as e:
+            logging.error("[ERROR] nutrition_dict is not a valid json string")
+
+    if type(nutrition_dict) != dict:
+        return sanic_json({"code": 2002, "msg": f'nutrition_dict格式错误！request.json：{req.json}，请检查！'})
+
+    #value in dict can not be null
+    for key in nutrition_dict.keys():
+        if key not in ['Calories', 'Protein', 'Fat', 'Carbs', 'Calcium', 'Iron', 'VC', 'VA', 'Fiber']:
+            return sanic_json({"code": 2002, "msg": f'nutrition_dict_key错误！request.json：{req.json}，请检查！'})
+        if nutrition_dict[key] is None:
+            return sanic_json({"code": 2002, "msg": f'nutrition_dict格式错误！request.json：{req.json}，请检查！'})
+
+    mysql_client.add_history_(user_id, nutrition_dict)
+    logging.info("[API]-[add history] user_id: %s, nutrition_dict: %s", user_id, nutrition_dict)
+    return sanic_json({"code": 200, "msg": "success add history", "user_id": user_id, "nutrition_dict": nutrition_dict})
 
 
 async def get_history(req: sanic_request):
+    """
+    user_id, history_num
+    log in
+    """
+    user_id = safe_get(req, 'user_id')
+    if user_id is None:
+        return sanic_json({"code": 2002, "msg": f'输入非法！request.json：{req.json}，请检查！'})
+    if not mysql_client.check_user_exist_by_id(user_id):
+        return sanic_json({"code": 2001, "msg": f'用户{user_id}不存在，请检查！'})
+
+    history_num = safe_get(req, 'history_num')
+    if history_num is None:
+        history_num = 10
+
+    history = mysql_client.get_history_by_user_id(user_id, history_num)
+    logging.info("[API]-[get history] user_id: %s, history: %s", user_id, history)
+    return sanic_json({"code": 200, "msg": "success get history", "history": history})
 
 
-async def get_user_info(req: sanic_request):
+async def chat(req: sanic_request):
+    """
+    uer_id, messages, model
+    """
+    user_id = safe_get(req, 'user_id')
+    if user_id is None:
+        return sanic_json({"code": 2002, "msg": f'输入非法！request.json：{req.json}，请检查！'})
+    is_valid = validate_user_id(user_id)
+    if not is_valid:
+        return sanic_json({"code": 2005, "msg": get_invalid_user_id_msg(user_id=user_id)})
+    logging.info("[API]-[chat] user_id: %s", user_id)
 
+    model = safe_get(req, 'model')
+    if not model:
+         return sanic_json({"code": 2002, "msg": f'输入非法！request.json：{req.json}，请检查！'})
+    messages = safe_get(req, 'messages')
+    if not messages:
+        return sanic_json({"code": 2002, "msg": f'Messages未传入！request.json：{req.json}，请检查！'})
+    if not isinstance(messages, list):
+        try:
+            messages = json.loads(messages)
+        except Exception as e:
+            return sanic_json({"code": 2002, "msg": f'Messages 格式错误！request.json：{req.json}，Error:{e}请检查！'})
 
-async def update_user_info(req: sanic_request):
+    try:
+        api_key, base_url = mysql_client.get_chat_information(user_id)[0]
+    except:
+        return sanic_json({"code": 2002, "msg": f'用户{user_id}未绑定API_KEY，请绑定API信息！'})
+
+    chat_client = OpenAI(
+        api_key=api_key,
+        base_url=base_url
+    )
+
+    chat_response = chat_client.chat.completions.create(
+        model=model,
+        messages=messages
+    )
+
+    content = chat_response.choices[0].message.content
+
+    messages.append({"role": "assistant", "content": content})
+
+    return sanic_json({"code": 200, "msg": "success", "data": content, "messages": messages})
