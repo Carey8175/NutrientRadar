@@ -126,7 +126,7 @@ class MySQLClient:
 
         query = """
             CREATE TABLE IF NOT EXISTS NutrientHistory (
-                user_id VARCHAR(255) PRIMARY KEY,
+                user_id VARCHAR(255),
                 Datetime TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FoodClasses VARCHAR(255),
                 Calories DECIMAL(10, 2),
@@ -142,6 +142,8 @@ class MySQLClient:
             );
         """
         self.execute_query_(query, (), commit=True)
+
+        self.init_food_nutrition()
 
     def init_food_nutrition(self):
         """ init food nutrition table """
@@ -161,5 +163,4 @@ class MySQLClient:
 
 if __name__ == '__main__':
     client = MySQLClient()
-    client.init_food_nutrition()
 
