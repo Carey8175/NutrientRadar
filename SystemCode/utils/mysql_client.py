@@ -1,3 +1,4 @@
+import json
 import logging
 import pymysql
 import pandas as pd
@@ -202,11 +203,10 @@ class MySQLClient:
         return result is not None and len(result) > 0
 
     def add_history_(self, user_id, nutrition_dict):
-        food_name = list(nutrition_dict.keys())
-        food_name_string = ', '.join(food_name)
-        nutrition_list = [sum(values) for values in zip(*nutrition_dict.values())]
+        food_classes = json.dumps(nutrition_dict['food_dict'])
+        nutrition_list = nutrition_dict['total_nutrition'].values()
         query = "INSERT INTO NutrientHistory (user_id, FoodClasses, Calories, Protein, Fat, Carbs, Calcium, Iron, VC, VA, Fiber) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
-        self.execute_query_(query, (user_id, food_name_string, nutrition_list[0], nutrition_list[1], nutrition_list[2], nutrition_list[3], nutrition_list[4], nutrition_list[5], nutrition_list[6], nutrition_list[7], nutrition_list[8]), commit=True)
+        self.execute_query_(query, (user_id, food_classes, *nutrition_list), commit=True)
         return user_id
 
     def get_history_by_user_id(self, user_id, history_num):

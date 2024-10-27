@@ -1,7 +1,7 @@
 import uuid
-import json
 import logging
 import json
+import pandas as pd
 from sanic.response import json as sanic_json
 from sanic import request as sanic_request
 from SystemCode.utils.general_utils import *
@@ -156,9 +156,7 @@ async def analyze_nutrition(req: sanic_request):
 async def add_history(req: sanic_request):
     """
     user_id nutrition_dict
-
-    nutrition_dict = {"Food_name1": [1, 2, 3, 4, 5, 6, 7, 8, 9],
-                      "Food_name2": [2, 3, 4, 5, 6, 7, 8, 9, 0]}
+    nutrition_dict
     add history
     """
     user_id = safe_get(req, 'user_id')
@@ -179,11 +177,25 @@ async def add_history(req: sanic_request):
         return sanic_json({"code": 2002, "msg": f'nutrition_dict格式错误！request.json：{req.json}，请检查！'})
 
     #value in dict can not be null
-    for key in nutrition_dict.keys():
-        if key not in ['Calories', 'Protein', 'Fat', 'Carbs', 'Calcium', 'Iron', 'VC', 'VA', 'Fiber']:
-            return sanic_json({"code": 2002, "msg": f'nutrition_dict_key错误！request.json：{req.json}，请检查！'})
-        if nutrition_dict[key] is None:
-            return sanic_json({"code": 2002, "msg": f'nutrition_dict格式错误！request.json：{req.json}，请检查！'})
+    if not nutrition_dict.get('food_dict', None):
+        return sanic_json({"code": 2002, "msg": f'nutrition_dict内容缺失！request.json：{req.json}，请检查！'})
+
+    if not nutrition_dict.get('total_nutrition', None):
+        return sanic_json({"code": 2002, "msg": f'nutrition_dict内容缺失！request.json：{req.json}，请检查！'})
+
+    df = pd.read_csv(FOOD_NUTRITION_CSV_PATH)
+    food_names_std = set(df['Food_name'].str.lower())
+    food_names = set(nutrition_dict['food_dict'].keys())
+
+    if len(food_names_std | food_names) != len(food_names_std):
+        return sanic_json({"code": 2002, "msg": f'nutrition_dict[food_name]内容错误！request.json：{req.json}，请检查！'})
+
+    for key in nutrition_dict['food_dict'].keys():
+        nutrition_std = {'Calories', 'Protein', 'Fat', 'Carbs', 'Calcium', 'Iron', 'VC', 'VA', 'Fiber'}
+        nutrition = set(nutrition_dict['food_dict'][key].keys())
+
+        if len(nutrition_std | nutrition) != len(nutrition_std):
+            return sanic_json({"code": 2002, "msg": f'nutrition_dict[food_dict][nutrition]内容错误！request.json：{req.json}，请检查！'})
 
     mysql_client.add_history_(user_id, nutrition_dict)
     logging.info("[API]-[add history] user_id: %s, nutrition_dict: %s", user_id, nutrition_dict)
