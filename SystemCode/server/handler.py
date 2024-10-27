@@ -8,6 +8,7 @@ from SystemCode.utils.general_utils import *
 from SystemCode.utils.mysql_client import MySQLClient
 from SystemCode.configs.basic import *
 from openai import OpenAI
+import datetime
 
 logging.basicConfig(level=LOG_LEVEL, format='%(asctime)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s', force=True)
 
@@ -76,6 +77,7 @@ async def add_new_user(req: sanic_request):
     logging.info("[API]-[add new user] user_id: %s", user_id)
     return sanic_json({"code": 200, "msg": "success add user, id: {}".format(user_id), "status": True, "user_id":user_id, "user_name": user_name, "user_dict": user_dict})
 
+
 async def get_user_info(req: sanic_request):
     """
     user_id
@@ -101,6 +103,7 @@ async def get_user_info(req: sanic_request):
     }
 
     return sanic_json({"code": 200, "msg": "成功获取用户信息", "user_info": user_info_dict})
+
 
 async def update_user_info(req: sanic_request):
     """
@@ -135,6 +138,7 @@ async def update_user_info(req: sanic_request):
 
     mysql_client.update_user_info( user_id, user_info_dict )
     return sanic_json({"code": 200, "msg": "success update user name"})
+
 
 async def analyze_nutrition(req: sanic_request):
     """
@@ -202,8 +206,31 @@ async def get_history(req: sanic_request):
         history_num = 10
 
     history = mysql_client.get_history_by_user_id(user_id, history_num)
-    logging.info("[API]-[get history] user_id: %s, history: %s", user_id, history)
-    return sanic_json({"code": 200, "msg": "success get history", "history": history})
+
+    history_list = []
+    for record in history:
+        record_dict = {
+            "user_id": record[0],
+            "Datetime": record[1],
+            "FoodClasses": record[2],
+            "Calories": record[3],
+            "Protein": record[4],
+            "Fat": record[5],
+            "Carbs": record[6],
+            "Calcium": record[7],
+            "Iron": record[8],
+            "VC": record[9],
+            "VA": record[10],
+            "Fiber": record[11]
+        }
+
+        if isinstance(record_dict["Datetime"], datetime.datetime):
+            record_dict["Datetime"] = record_dict["Datetime"].isoformat()
+
+        history_list.append(record_dict)
+
+    logging.info("[API]-[get history] user_id: %s, history: %s", user_id, history_list)
+    return sanic_json({"code": 200, "msg": "success get history", "history": history_list})
 
   
 async def chat(req: sanic_request):
