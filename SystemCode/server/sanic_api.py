@@ -48,7 +48,8 @@ async def handle_options_request(request):
 
 
 # add ---------------------------------------------------------------------------------------------------
-
+app.add_route(add_history, "/api/v1/add/add_history", methods=['POST'])  # tags=["添加历史记录"]
+app.add_route(add_new_user, "/api/v1/add/add_new_user", methods=['POST'])  # tags=["添加用户"]
 
 # delete ------------------------------------------------------------------------------------------------
 
@@ -59,8 +60,10 @@ async def handle_options_request(request):
 app.add_route(update_user_info, "/api/v1/update/update_user_info", methods=['POST'])  # tags=["更新用户信息"]
 
 # search ------------------------------------------------------------------------------------------------
-app.add_route(login, "/api/v1/search/login", methods=['POST'])  # tags=["登录"]
+app.add_route(login, "/api/v1/login", methods=['POST'])  # tags=["登录"]
+app.add_route(get_history, "/api/v1/search/get_history", methods=['POST'])  # tags=["获取历史记录"]
 app.add_route(get_user_info, "/api/v1/search/get_user_info", methods=['POST'])  # tags=["获取用户信息"]
+
 
 # chat---------------------------------------------------------------------------------------------------
 

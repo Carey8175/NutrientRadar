@@ -150,9 +150,11 @@ class MySQLClient:
         result = self.execute_query_(query, (user_name,), fetch=True)
         return result is not None and len(result) > 0
 
-    def add_user_(self, user_id, user_name=None):
-        query = "INSERT INTO User (user_id, user_name) VALUES (%s, %s)"
-        self.execute_query_(query, (user_id, user_name), commit=True)
+    def add_user_(self, user_id, user_dict, user_name=None):
+        # user_str = list(user_dict.values())
+        user_str = [user_dict['height'], user_dict['weight'], user_dict['age'], user_dict['group'], user_dict['allergy']]
+        query = "INSERT INTO User (user_id, user_name, height, weight, age, `group`, allergy) VALUES (%s, %s, %s, %s, %s, %s, %s)"
+        self.execute_query_(query, (user_id, user_name, user_str[0], user_str[1], user_str[2], user_str[3], user_str[4]), commit=True)
         return user_id
 
     def get_user_info(self, user_id):
@@ -193,6 +195,33 @@ class MySQLClient:
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
         self.execute_query_(query, nutrition_data, commit=True, many=True)
+        
+    def check_user_exist_by_id(self, user_id):
+        query = "SELECT user_id FROM User WHERE user_id = %s"
+        result = self.execute_query_(query, (user_id,), fetch=True)
+        return result is not None and len(result) > 0
+
+    def add_history_(self, user_id, nutrition_dict):
+        food_name = list(nutrition_dict.keys())
+        food_name_string = ', '.join(food_name)
+        nutrition_list = [sum(values) for values in zip(*nutrition_dict.values())]
+        query = "INSERT INTO NutrientHistory (user_id, FoodClasses, Calories, Protein, Fat, Carbs, Calcium, Iron, VC, VA, Fiber) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
+        self.execute_query_(query, (user_id, food_name_string, nutrition_list[0], nutrition_list[1], nutrition_list[2], nutrition_list[3], nutrition_list[4], nutrition_list[5], nutrition_list[6], nutrition_list[7], nutrition_list[8]), commit=True)
+        return user_id
+
+    def get_history_by_user_id(self, user_id, history_num):
+        query = "SELECT * FROM NutrientHistory WHERE user_id = %s ORDER BY Datetime DESC LIMIT %s"
+        result = self.execute_query_(query, (user_id, history_num), fetch=True)
+        return result
+
+    def get_chat_information(self, user_id):
+        query = """
+            SELECT api_key, base_url, model, height, weight, age, `group`, allergy
+            FROM User
+            WHERE user_id = %s;
+        """
+        results = self.execute_query_(query, (user_id,), fetch=True)
+        return results
 
         
 if __name__ == '__main__':
