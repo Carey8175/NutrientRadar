@@ -28,25 +28,19 @@ async def login(req: sanic_request):
     return sanic_json({"code": 200, "msg": "success add user, id: {}".format(user_id), "user_id": user_id})
 
 
-async def analyze_nutrition
+async def analyze_nutrition(req: sanic_request):
 
 
-async def update_history
+async def update_history(req: sanic_request):
 
 
-async def delete_history
+async def delete_history(req: sanic_request):
 
 
-async def get_history
+async def get_history(req: sanic_request):
 
 
-async def get_user_info
+async def get_user_info(req: sanic_request):
 
 
-async def update_user_info
-
-
-
-
-
-
+async def update_user_info(req: sanic_request):
