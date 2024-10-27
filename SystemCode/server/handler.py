@@ -44,14 +44,11 @@ async def get_user_info(req: sanic_request):
     user_info_dict = {
         "user_id": user_info[0],
         "name": user_info[1],
-        "api_key": user_info[2],
-        "base_url": user_info[3],
-        "model": user_info[4],
-        "height": user_info[5],
-        "weight": user_info[6],
-        "age": user_info[7],
-        "group": user_info[8],
-        "allergy": user_info[9]
+        "height": user_info[2],
+        "weight": user_info[3],
+        "age": user_info[4],
+        "group": user_info[5],
+        "allergy": user_info[6]
     }
 
     return sanic_json({"code": 200, "msg": "成功获取用户信息", "user_info": user_info_dict})

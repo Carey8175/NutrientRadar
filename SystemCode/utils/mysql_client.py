@@ -155,9 +155,8 @@ class MySQLClient:
         result = self.execute_query_(query, (user_id,), fetch=True)
         return result
 
-
     def update_user_info(self, user_id, user_info_dict):
-        allowed_fields = ['api_key', 'base_url', 'model', 'height', 'weight', 'age', '`group`', 'allergy']
+        allowed_fields = ['height', 'weight', 'age', '`group`', 'allergy']
         set_clauses = []
         values = []
 
