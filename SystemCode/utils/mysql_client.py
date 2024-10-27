@@ -41,7 +41,12 @@ class MySQLClient:
 
     def _check_connection(self):
         # connect to mysql
-        conn = self.get_conn()
+        conn = pymysql.connect(
+            host=self.host,
+            port=self.port,
+            user=self.user,
+            password=self.password
+        )
         cursor = conn.cursor()
         cursor.execute('SHOW DATABASES')
         databases = [database[0] for database in cursor]
@@ -92,7 +97,7 @@ class MySQLClient:
                 height INT,
                 width INT,
                 age INT,
-                group VARCAHR(255),
+                `group` VARCHAR(255),
                 allergy VARCHAR(255)
             );
         """
@@ -110,7 +115,7 @@ class MySQLClient:
                 VC DECIMAL(10, 2),
                 VA DECIMAL(10, 2),
                 Fiber DECIMAL(10, 2),
-                DensityArea DECIMAL(10, 2),
+                DensityArea DECIMAL(10, 2)
             );
 
         """
@@ -132,9 +137,11 @@ class MySQLClient:
                 Fiber DECIMAL(10, 2),
                 FOREIGN KEY (user_id) REFERENCES User(user_id) ON DELETE CASCADE
             );
-
         """
         self.execute_query_(query, (), commit=True)
 
+
+if __name__ == '__main__':
+    client = MySQLClient()
 
 
