@@ -37,7 +37,7 @@ class ModelManager:
         """
         analyze the nutrition of the food in the image
         :return
-        {"credit_card", "food_dict"}
+        {"credit_card", "food_dict", "total_nutrition"}
         """
         data = {"credit_card_area": 0, "food_dict": {}}
 
@@ -116,4 +116,3 @@ if __name__ == '__main__':
 
     data = model_manager.analyze_nutrition(image, detect_credit_card=True)
     data2 = model_manager.analyze_nutrition(image, detect_credit_card=False)
-
