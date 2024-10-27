@@ -140,6 +140,15 @@ class MySQLClient:
         """
         self.execute_query_(query, (), commit=True)
 
+    def check_user_exist_by_name(self, user_name):
+        query = "SELECT user_name FROM User WHERE user_name = %s"
+        result = self.execute_query_(query, (user_name,), fetch=True)
+        return result is not None and len(result) > 0
+
+    def add_user_(self, user_id, user_name=None):
+        query = "INSERT INTO User (user_id, user_name) VALUES (%s, %s)"
+        self.execute_query_(query, (user_id, user_name), commit=True)
+        return user_id
 
 if __name__ == '__main__':
     client = MySQLClient()
