@@ -1,3 +1,4 @@
+import base64
 import uuid
 import logging
 import json
@@ -294,3 +295,27 @@ async def chat(req: sanic_request):
     messages.append({"role": "assistant", "content": content})
 
     return sanic_json({"code": 200, "status": True, "msg": "success", "data": content, "messages": messages})
+
+
+async def test(req: sanic_request):
+    from sanic.response import file
+
+    data = {
+        'Name': ['Alice', 'Bob', 'Charlie'],
+        'Age': [24, 30, 22],
+        'City': ['New York', 'Los Angeles', 'Chicago']
+    }
+    df = pd.DataFrame(data)
+
+    # 将数据保存到Excel文件
+    excel_path = 'test.xlsx'
+    df.to_excel(excel_path, index=False)
+
+    with open('test.xlsx', 'rb') as f:
+        data = base64.b64encode(f.read()).decode('utf-8')
+
+    # 删除临时文件
+    os.remove(excel_path)
+
+    return sanic_json({"code": 200, "status": True, "msg": "success", "data": data})
+

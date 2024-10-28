@@ -66,7 +66,7 @@ app.add_route(get_user_info, "/api/v1/search/get_user_info", methods=['POST'])  
 
 
 # chat---------------------------------------------------------------------------------------------------
-
+app.add_route(test, "/api/v1/test", methods=['get'])  # tags=["测试"]
 
 #app.add_route(document, "/api/docs", methods=['GET'])
 
