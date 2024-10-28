@@ -93,9 +93,6 @@ class MySQLClient:
             CREATE TABLE IF NOT EXISTS User (
                 user_id VARCHAR(255) PRIMARY KEY,
                 user_name VARCHAR(255),
-                api_key VARCHAR(255),
-                base_url VARCHAR(255),
-                model VARCHAR(255),
                 height INT,
                 weight INT,
                 age INT,
@@ -164,13 +161,16 @@ class MySQLClient:
         return result
 
     def update_user_info(self, user_id, user_info_dict):
-        allowed_fields = ['height', 'weight', 'age', '`group`', 'allergy']
+        allowed_fields = ['height', 'weight', 'age', 'group', 'allergy']
         set_clauses = []
         values = []
 
         for field in allowed_fields:
             if field in user_info_dict:
-                set_clauses.append(f"{field} = %s")
+                if field == 'group':
+                    set_clauses.append(f"`group` = %s")
+                else:
+                    set_clauses.append(f"{field} = %s")
                 values.append(user_info_dict[field])
 
         if not set_clauses:
@@ -216,7 +216,7 @@ class MySQLClient:
 
     def get_chat_information(self, user_id):
         query = """
-            SELECT api_key, base_url, model, height, weight, age, `group`, allergy
+            SELECT height, weight, age, `group`, allergy
             FROM User
             WHERE user_id = %s;
         """

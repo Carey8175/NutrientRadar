@@ -13,8 +13,9 @@ import datetime
 logging.basicConfig(level=LOG_LEVEL, format='%(asctime)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s', force=True)
 
 mysql_client = MySQLClient()
-#--------------------User-------------------------
 
+
+# --------------------User-------------------------
 async def login(req: sanic_request):
     """
     user_name
@@ -35,8 +36,7 @@ async def login(req: sanic_request):
     info = mysql_client.get_chat_information(user_id)
 
     logging.info("[API]-[login] user_id: %s", user_id)
-    return sanic_json({"code": 200, "msg": "success log in", "status": True, "user_id": user_id
-                       , "api_key": info[0][0], "base_url": info[0][1], "model": info[0][2], "height": info[0][3], "weight": info[0][4], "age": info[0][5], "group": info[0][6], "allergy": info[0][7]})
+    return sanic_json({"code": 200, "msg": "success log in", "status": True, "user_id": user_id, "height": info[0][0], "weight": info[0][1], "age": info[0][2], "group": info[0][3], "allergy": info[0][4]})
 
 
 async def add_new_user(req: sanic_request):
@@ -141,8 +141,8 @@ async def update_user_info(req: sanic_request):
     if not user_info_dict:
         return sanic_json({"code": 2003, "status": None, "msg": "没有可更新的字段"})
 
-    mysql_client.update_user_info( user_id, user_info_dict )
-    return sanic_json({"code": 200, "status": True, "msg": "success update user name"})
+    mysql_client.update_user_info(user_id, user_info_dict)
+    return sanic_json({"code": 200, "status": True, "msg": "success update user info"})
 
 
 async def analyze_nutrition(req: sanic_request):
