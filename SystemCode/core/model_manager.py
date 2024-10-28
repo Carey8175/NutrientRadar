@@ -1,8 +1,10 @@
 import logging
 import pandas as pd
 from ultralytics import YOLO
+from openai import OpenAI
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
-from SystemCode.configs.basic import CREDIT_CARD_MODEL_PATH, FOOD_MODEL_PATH, FOOD_NUTRITION_CSV_PATH, CREDIT_CARD_AREA
+from SystemCode.configs.basic import *
 
 
 class ModelManager:
@@ -11,7 +13,15 @@ class ModelManager:
         self.food_model = YOLO(FOOD_MODEL_PATH)
         self.nutrition_data = None
         self.load_nutrition(FOOD_NUTRITION_CSV_PATH)
+        self.llm_mode = USE_QWEN
         logging.info('[ModelManager]ModelManager initialized')
+        if self.llm_mode:
+            self.model = AutoModelForCausalLM.from_pretrained(
+                QWEN_MODEL_NAME,
+                torch_dtype="auto",
+                device_map="auto"
+            )
+            self.tokenizer = AutoTokenizer.from_pretrained(QWEN_MODEL_NAME)
 
     def load_nutrition(self, nutrition_csv_path):
         """
@@ -107,6 +117,49 @@ class ModelManager:
 
         return data
 
+    def chat_qwen(self, messages):
+        """
+        chat with the model
+        :param messages: list of
+        :return:
+        """
+        if not self.llm_mode:
+            return 'Qwen model is not enabled'
+
+        text = self.tokenizer.apply_chat_template(
+            messages,
+            tokenize=False,
+            add_generation_prompt=True
+        )
+        model_inputs = self.tokenizer([text], return_tensors="pt").to(self.model.device)
+
+        generated_ids = self.model.generate(
+            **model_inputs,
+            max_new_tokens=512
+        )
+        generated_ids = [
+            output_ids[len(input_ids):] for input_ids, output_ids in zip(model_inputs.input_ids, generated_ids)
+        ]
+
+        response = self.tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
+
+        return response
+
+    def chat_api(self, messages):
+        chat_client = OpenAI(
+            api_key=API_KEY,
+            base_url=BASE_URL
+        )
+
+        chat_response = chat_client.chat.completions.create(
+            model=API_MODEL_NAME,
+            messages=messages
+        )
+
+        content = chat_response.choices[0].message.content
+
+        return content
+
 
 if __name__ == '__main__':
     model_manager = ModelManager()
@@ -114,5 +167,8 @@ if __name__ == '__main__':
 
     image = Image.open('./img_2.png')
 
-    data = model_manager.analyze_nutrition(image, detect_credit_card=True)
-    data2 = model_manager.analyze_nutrition(image, detect_credit_card=False)
+    data = model_manager.analyze_nutrition(image, detect_credit_card=False)
+    # data2 = model_manager.analyze_nutrition(image, detect_credit_card=False)
+
+    # print(model_manager.chat_api([{"role": "user", "content": "hello"}]))
+    1
