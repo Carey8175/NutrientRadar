@@ -3,17 +3,24 @@ import uuid
 import logging
 import json
 import pandas as pd
+from io import BytesIO
+from PIL import Image
+import pillow_heif
 from sanic.response import json as sanic_json
 from sanic import request as sanic_request
 from SystemCode.utils.general_utils import *
 from SystemCode.utils.mysql_client import MySQLClient
+from SystemCode.utils.nutrient_report import create_pdf
+from SystemCode.utils.nutrient_history import create_history_pdf
 from SystemCode.configs.basic import *
-from openai import OpenAI
+from SystemCode.core.model_manager import ModelManager
 import datetime
 
 logging.basicConfig(level=LOG_LEVEL, format='%(asctime)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s', force=True)
+pillow_heif.register_heif_opener()
 
 mysql_client = MySQLClient()
+modelmanager = ModelManager()
 
 
 # --------------------User-------------------------
@@ -148,30 +155,43 @@ async def update_user_info(req: sanic_request):
 
 async def analyze_nutrition(req: sanic_request):
     """
-    user_id,nutrition_list
+    user_id, img
     log in
     """
-    nutrition_list = safe_get(req, 'nutrition_list')
-    if nutrition_list is None:
+    user_id = safe_get(req, 'user_id')
+    if not user_id:
         return sanic_json({"code": 2002, "status": None, "msg": f'输入非法！request.json：{req.json}，请检查！'})
-    result = mysql_client.analyze_nutrition_(nutrition_list)
-    logging.info("[API]-[analyze nutrition] nutrition_list: %s, result: %s", nutrition_list, result)
-    return sanic_json({"code": 200, "status": True, "msg": "success analyze nutrition", "result": result})
+    is_valid = validate_user_id(user_id)
+    if not is_valid:
+        return sanic_json({"code": 2005, "status": None, "msg": get_invalid_user_id_msg(user_id=user_id)})
+
+    img_base64_str = safe_get(req, 'img')
+    if not img_base64_str:
+        return sanic_json({"code": 2002, "status": None, "msg": f'输入非法！request.json：{req.json}，请检查！'})
+
+    use_card = safe_get(req, 'use_card')
+    use_card = True if use_card == 1 else False
+
+    logging.info("[API]-[analyze nutrition] use_card: %s", use_card)
+
+    img = Image.open(BytesIO(base64.b64decode(img_base64_str)))
+    result = modelmanager.analyze_nutrition(img, use_card)
+
+    pdf = create_pdf(result['food_dict'], result['total_nutrition'])
+    encode_pdf = base64.b64encode(pdf.read()).decode('utf-8')
+
+    # add to history
+    add_history(user_id, result)
+
+    return sanic_json({"code": 200, "status": True, "msg": "success analyze nutrition", "data": encode_pdf})
 
 
-async def add_history(req: sanic_request):
+def add_history(user_id, nutrition_dict):
     """
     user_id nutrition_dict
     nutrition_dict
     add history
     """
-    user_id = safe_get(req, 'user_id')
-    nutrition_dict = safe_get(req, 'nutrition_dict')
-    if user_id is None or nutrition_dict is None:
-        return sanic_json({"code": 2002, "status": None, "msg": f'输入非法！request.json：{req.json}，请检查！'})
-    if not mysql_client.check_user_exist_by_id(user_id):
-        return sanic_json({"code": 2001, "status": None, "msg": f'用户{user_id}不存在，请检查！'})
-
     if type(nutrition_dict) == str:
         try:
             nutrition_dict_str = nutrition_dict
@@ -205,7 +225,6 @@ async def add_history(req: sanic_request):
 
     mysql_client.add_history_(user_id, nutrition_dict)
     logging.info("[API]-[add history] user_id: %s, nutrition_dict: %s", user_id, nutrition_dict)
-    return sanic_json({"code": 200, "status": True, "msg": "success add history", "user_id": user_id, "nutrition_dict": nutrition_dict})
 
 
 async def get_history(req: sanic_request):
@@ -222,38 +241,27 @@ async def get_history(req: sanic_request):
     history_num = safe_get(req, 'history_num')
     if history_num is None:
         history_num = 10
+    if not isinstance(history_num, int):
+        try:
+            history_num = int(history_num)
+        except Exception as e:
+            return sanic_json({"code": 2002, "status": None, "msg": f'输入非法！request.json：{req.json}，请检查！'})
 
+    # encode the history to excel
     history = mysql_client.get_history_by_user_id(user_id, history_num)
+    df = pd.DataFrame(history)
 
-    history_list = []
-    for record in history:
-        record_dict = {
-            "user_id": record[0],
-            "Datetime": record[1],
-            "FoodClasses": record[2],
-            "Calories": record[3],
-            "Protein": record[4],
-            "Fat": record[5],
-            "Carbs": record[6],
-            "Calcium": record[7],
-            "Iron": record[8],
-            "VC": record[9],
-            "VA": record[10],
-            "Fiber": record[11]
-        }
+    pdf = create_history_pdf(df)
+    encoded_excel = base64.b64encode(pdf.read()).decode('utf-8')
 
-        if isinstance(record_dict["Datetime"], datetime.datetime):
-            record_dict["Datetime"] = record_dict["Datetime"].isoformat()
+    logging.info("[API]-[get history] user_id: %s, history: %s", user_id)
 
-        history_list.append(record_dict)
+    return sanic_json({"code": 200, "status": True, "msg": "success get history", "data": encoded_excel})
 
-    logging.info("[API]-[get history] user_id: %s, history: %s", user_id, history_list)
-    return sanic_json({"code": 200, "status": True, "msg": "success get history", "history": history_list})
 
-  
-async def chat(req: sanic_request):
+async def recommend(req: sanic_request):
     """
-    uer_id, messages, model
+    user_id, model
     """
     user_id = safe_get(req, 'user_id')
     if user_id is None:
@@ -261,61 +269,30 @@ async def chat(req: sanic_request):
     is_valid = validate_user_id(user_id)
     if not is_valid:
         return sanic_json({"code": 2005, "status": None, "msg": get_invalid_user_id_msg(user_id=user_id)})
-    logging.info("[API]-[chat] user_id: %s", user_id)
+    logging.info("[API]-[recommend] user_id: %s", user_id)
 
-    model = safe_get(req, 'model')
-    if not model:
-         return sanic_json({"code": 2002, "status": None, "msg": f'输入非法！request.json：{req.json}，请检查！'})
-    messages = safe_get(req, 'messages')
-    if not messages:
-        return sanic_json({"code": 2002, "status": None, "msg": f'Messages未传入！request.json：{req.json}，请检查！'})
-    if not isinstance(messages, list):
-        try:
-            messages = json.loads(messages)
-        except Exception as e:
-            return sanic_json({"code": 2002, "status": None, "msg": f'Messages 格式错误！request.json：{req.json}，Error:{e}请检查！'})
+    # get history 7 days
+    history = mysql_client.get_history_by_user_id(user_id, 7)
+    history_json = json.dumps(pd.DataFrame(history).to_json(orient='records'))
 
-    try:
-        api_key, base_url = mysql_client.get_chat_information(user_id)[0]
-    except:
-        return sanic_json({"code": 2002, "status": None, "msg": f'用户{user_id}未绑定API_KEY，请绑定API信息！'})
+    food_info = pd.read_csv(FOOD_NUTRITION_CSV_PATH)
+    # split to 3 parts to avoid too many data
+    food_info1 = food_info.iloc[:30]
+    food_info2 = food_info.iloc[30:60]
+    food_info3 = food_info.iloc[60:]
+    messages = [
+        {"role": "system", "content": "I am a recipe recommendation system.recommend you to morrow's recipes based on your history and food nutrition info."},
+        {"role": "system", "content": json.dumps(food_info1.to_json(orient='records'))},
+        {"role": "system", "content": json.dumps(food_info2.to_json(orient='records'))},
+        {"role": "system", "content": json.dumps(food_info3.to_json(orient='records'))},
+        {"role": "user", "content": 'This is my history record: ' + history_json}
+    ]
+    print(messages)
+    # use LLMs to recommend recipes
+    if USE_QWEN:
+        response = modelmanager.chat_qwen(messages)
+    else:
+        response = modelmanager.chat_api(messages)
 
-    chat_client = OpenAI(
-        api_key=api_key,
-        base_url=base_url
-    )
-
-    chat_response = chat_client.chat.completions.create(
-        model=model,
-        messages=messages
-    )
-
-    content = chat_response.choices[0].message.content
-
-    messages.append({"role": "assistant", "content": content})
-
-    return sanic_json({"code": 200, "status": True, "msg": "success", "data": content, "messages": messages})
-
-
-async def test(req: sanic_request):
-    from sanic.response import file
-
-    data = {
-        'Name': ['Alice', 'Bob', 'Charlie'],
-        'Age': [24, 30, 22],
-        'City': ['New York', 'Los Angeles', 'Chicago']
-    }
-    df = pd.DataFrame(data)
-
-    # 将数据保存到Excel文件
-    excel_path = 'test.xlsx'
-    df.to_excel(excel_path, index=False)
-
-    with open('test.xlsx', 'rb') as f:
-        data = base64.b64encode(f.read()).decode('utf-8')
-
-    # 删除临时文件
-    os.remove(excel_path)
-
-    return sanic_json({"code": 200, "status": True, "msg": "success", "data": data})
+    return sanic_json({"code": 200, "status": True, "msg": "success recommend", "data": response})
 
