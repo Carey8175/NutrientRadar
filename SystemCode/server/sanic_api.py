@@ -61,26 +61,13 @@ app.add_route(update_user_info, "/api/v1/update/user_info", methods=['POST'])  #
 
 # search ------------------------------------------------------------------------------------------------
 app.add_route(login, "/api/v1/login", methods=['POST'])  # tags=["登录"]
-app.add_route(get_history, "/api/v1/search/get_history", methods=['POST'])  # tags=["获取历史记录"]
-app.add_route(get_user_info, "/api/v1/search/get_user_info", methods=['POST'])  # tags=["获取用户信息"]
+app.add_route(get_history, "/api/v1/search/history", methods=['POST'])  # tags=["获取历史记录"]
+app.add_route(get_user_info, "/api/v1/search/user_info", methods=['POST'])  # tags=["获取用户信息"]
 
 
 # chat---------------------------------------------------------------------------------------------------
-app.add_route(test, "/api/v1/test", methods=['get'])  # tags=["测试"]
-
-#app.add_route(document, "/api/docs", methods=['GET'])
-
-#app.add_route(upload_weblink, "/api/local_doc_qa/upload_weblink", methods=['POST'])  # tags=["上传网页链接"]
-
-#app.add_route(local_doc_chat, "/api/local_doc_qa/local_doc_chat", methods=['POST'])  # tags=["问答接口"]
-#app.add_route(list_kbs, "/api/local_doc_qa/list_knowledge_base", methods=['POST'])  # tags=["知识库列表"]
-#app.add_route(list_docs, "/api/local_doc_qa/list_files", methods=['POST'])  # tags=["文件列表"]
-#app.add_route(get_total_status, "/api/local_doc_qa/get_total_status", methods=['POST'])  # tags=["获取所有知识库状态"]
-#app.add_route(clean_files_by_status, "/api/local_doc_qa/clean_files_by_status", methods=['POST'])  # tags=["清理数据库"]
-#app.add_route(delete_docs, "/api/local_doc_qa/delete_files", methods=['POST'])  # tags=["删除文件"]
-#app.add_route(delete_knowledge_base, "/api/local_doc_qa/delete_knowledge_base", methods=['POST'])  # tags=["删除知识库"]
-#app.add_route(rename_knowledge_base, "/api/local_doc_qa/rename_knowledge_base", methods=['POST'])  # tags=["重命名知识库"]
-
+app.add_route(recommend, "/api/v1/chat/recommend", methods=['POST'])  # tags=["推荐"]
+app.add_route(analyze_nutrition, "/api/v1/chat/analyze_nutrition", methods=['POST'])  # tags=["分析营养"]
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=18080, access_log=False)
