@@ -37,13 +37,13 @@ class ModelManager:
         """
         analyze the nutrition of the food in the image
         :return
-        {"credit_card", "food_dict"}
+        {"credit_card", "food_dict", "total_nutrition"}
         """
         data = {"credit_card_area": 0, "food_dict": {}}
 
         if detect_credit_card:
             results = self.credit_card_model.predict(image)
-            if results:
+            if results and results[0]:
                 results = sorted(results[0], key=lambda x: x.boxes.conf, reverse=True)[0]
                 data["credit_card_area"] = (results.masks.data >= 1).sum().item()
 
@@ -112,8 +112,14 @@ if __name__ == '__main__':
     model_manager = ModelManager()
     from PIL import Image
 
-    image = Image.open('./img_2.png')
+    #image = Image.open('./img_2.png')
 
-    data = model_manager.analyze_nutrition(image, detect_credit_card=True)
+    import base64
+    img_str = base64.b64encode(open('../img.png', 'rb').read())
+    img = base64.b64decode(img_str)
+    import io
+    img = Image.open(io.BytesIO(img))
+
+    data = model_manager.analyze_nutrition(img, detect_credit_card=True)
     data2 = model_manager.analyze_nutrition(image, detect_credit_card=False)
 

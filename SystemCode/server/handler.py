@@ -2,8 +2,13 @@ import uuid
 import json
 import logging
 import json
+import base64
+import io
+import matplotlib.pyplot as plt
+from PIL import Image
 from sanic.response import json as sanic_json
 from sanic import request as sanic_request
+from SystemCode.core.model_manager import ModelManager
 from SystemCode.utils.general_utils import *
 from SystemCode.utils.mysql_client import MySQLClient
 from SystemCode.configs.basic import *
@@ -12,6 +17,7 @@ from openai import OpenAI
 logging.basicConfig(level=LOG_LEVEL, format='%(asctime)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s', force=True)
 
 mysql_client = MySQLClient()
+model_manager = ModelManager()
 #--------------------User-------------------------
 
 async def login(req: sanic_request):
@@ -136,18 +142,28 @@ async def update_user_info(req: sanic_request):
     mysql_client.update_user_info( user_id, user_info_dict )
     return sanic_json({"code": 200, "msg": "success update user name"})
 
+
 async def analyze_nutrition(req: sanic_request):
     """
     user_id,nutrition_list
     log in
     """
-    nutrition_list = safe_get(req, 'nutrition_list')
-    if nutrition_list is None:
+    image = safe_get(req, 'image') #base64 string
+    user_id = safe_get(req, 'user_id')
+    if not image:
         return sanic_json({"code": 2002, "msg": f'输入非法！request.json：{req.json}，请检查！'})
-    result = mysql_client.analyze_nutrition_(nutrition_list)
-    logging.info("[API]-[analyze nutrition] nutrition_list: %s, result: %s", nutrition_list, result)
-    return sanic_json({"code": 200, "msg": "success analyze nutrition", "result": result})
+    if not user_id:
+        return sanic_json({"code": 2002, "msg": f'输入非法！request.json：{req.json}，请检查！'})
 
+    img = base64.b64decode(bytes(image))
+    img = Image.open(io.BytesIO(img))
+
+    data = model_manager.analyze_nutrition(img)
+
+    # 画图
+
+    logging.info("[API]-[analyze nutrition] nutrition_list: %s, result: %s", nutrition_list, result)
+    return sanic_json({"code": 200, "msg": "success analyze nutrition", "data": data})
 
 async def add_history(req: sanic_request):
     """
