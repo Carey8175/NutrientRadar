@@ -254,7 +254,7 @@ async def get_history(req: sanic_request):
     pdf = create_history_pdf(df)
     encoded_excel = base64.b64encode(pdf.read()).decode('utf-8')
 
-    logging.info("[API]-[get history] user_id: %s, history: %s", user_id)
+    logging.info("[API]-[get history] user_id: %s", user_id)
 
     return sanic_json({"code": 200, "status": True, "msg": "success get history", "data": encoded_excel})
 
