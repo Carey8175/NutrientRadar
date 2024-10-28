@@ -210,8 +210,38 @@ class MySQLClient:
         return user_id
 
     def get_history_by_user_id(self, user_id, history_num):
-        query = "SELECT * FROM NutrientHistory WHERE user_id = %s ORDER BY Datetime DESC LIMIT %s"
-        result = self.execute_query_(query, (user_id, history_num), fetch=True)
+        conn = self.get_conn()
+        cursor = conn.cursor(
+            cursor=pymysql.cursors.DictCursor
+        )
+        query = """
+        SELECT 
+            DATE(Datetime) AS Date,
+            SUM(Calories) AS Calories,
+            SUM(Protein) AS Protein,
+            SUM(Fat) AS Fat,
+            SUM(Carbs) AS Carbs,
+            SUM(Calcium) AS Calcium,
+            SUM(Iron) AS Iron,
+            SUM(VC) AS VC,
+            SUM(VA) AS VA,
+            SUM(Fiber) AS Fiber
+        FROM 
+            NutrientHistory
+        WHERE 
+            user_id = %s
+        GROUP BY 
+            DATE(Datetime)
+        ORDER BY 
+            Date DESC
+        LIMIT %s;
+        """
+
+        result = cursor.execute(query, (user_id, history_num))
+        result = cursor.fetchall()
+        cursor.close()
+        conn.close()
+
         return result
 
     def get_chat_information(self, user_id):
