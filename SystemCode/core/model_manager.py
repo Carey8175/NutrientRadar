@@ -49,6 +49,8 @@ class ModelManager:
         :return
         {"credit_card", "food_dict", "total_nutrition"}
         """
+        logging.info('[ModelManager]Start to analyze nutrition')
+
         data = {"credit_card_area": 0, "food_dict": {}}
 
         if detect_credit_card:
@@ -58,6 +60,8 @@ class ModelManager:
                 data["credit_card_area"] = (results.masks.data >= 1).sum().item()
 
         results = self.food_model.predict(image)
+        logging.info(f'[ModelManager]results: {results}')
+
         if not results:
             return data
 

@@ -6,5 +6,5 @@ if __name__ == '__main__':
         host="0.0.0.0",
         port=18080,
         access_log=False,
-        workers=3
+        single_process=True
     )
