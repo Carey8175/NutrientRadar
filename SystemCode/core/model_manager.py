@@ -60,10 +60,12 @@ class ModelManager:
                 data["credit_card_area"] = (results.masks.data >= 1).sum().item()
 
         results = self.food_model.predict(image)
-        logging.info(f'[ModelManager]results: {results}')
 
         if not results:
             return data
+
+        logging.info('[ModelManager]Food detected: ', results[0].boxes.cls)
+        logging.info('[ModelManager]Food confidence: ', results[0].boxes.conf)
 
         for res in sorted(results[0], key=lambda x: x.boxes.conf, reverse=True):
             if res.boxes.conf < FOOD_CONFIDENCE_THRESHOLD:
