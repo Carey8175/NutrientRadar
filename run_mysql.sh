@@ -1,0 +1,1 @@
+docker run --name nutrient-radar-mysql -e MYSQL_ROOT_PASSWORD=123456 -d mysql:latest
