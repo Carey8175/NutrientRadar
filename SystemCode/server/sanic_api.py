@@ -1,3 +1,4 @@
+import logging
 import sys
 from SystemCode.configs.basic import *
 
@@ -49,7 +50,7 @@ async def handle_options_request(request):
 
 # add ---------------------------------------------------------------------------------------------------
 app.add_route(add_history, "/api/v1/add/history", methods=['POST'])  # tags=["添加历史记录"]
-app.add_route(add_new_user, "/api/v1/add/new_user", methods=['POST'])  # tags=["添加用户"]
+app.add_route(add_new_user, "/api/v1/add/user", methods=['POST'])  # tags=["添加用户"]
 
 # delete ------------------------------------------------------------------------------------------------
 

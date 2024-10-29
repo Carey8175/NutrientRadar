@@ -33,6 +33,8 @@ async def login(req: sanic_request):
     if user_name is None:
         return sanic_json({"code": 2002, "status": None, "msg": f'输入非法！request.json：{req.json}，请检查！'})
 
+    logging.info("[API]-[login] user_id: %s", user_name)
+
     status = mysql_client.check_user_exist_by_name(user_name)
     if not status:
         return sanic_json({"code": 200, "msg": f'用户名不存在，请检查！', "status": None, "user_id": None, "api_key": None, "base_url": None, "model": None, "height": None, "weight": None, "age": None, "group": None, "allergy": None})
@@ -43,7 +45,6 @@ async def login(req: sanic_request):
 
     info = mysql_client.get_chat_information(user_id)
 
-    logging.info("[API]-[login] user_id: %s", user_id)
     return sanic_json({"code": 200, "msg": "success log in", "status": True, "user_id": user_id, "height": info[0][0], "weight": info[0][1], "age": info[0][2], "group": info[0][3], "allergy": info[0][4]})
 
 
@@ -54,6 +55,8 @@ async def add_new_user(req: sanic_request):
     """
     user_name = safe_get(req, 'user_name')
     user_dict = safe_get(req, 'user_dict')
+    logging.info("[API]-[add new user] user_name: %s, user_dict: %s", user_name, user_dict)
+
     if not user_name:
         return sanic_json({"code": 2002, "status": None, "msg": f'输入非法！request.json：{req.json}，请检查！'})
     if mysql_client.check_user_exist_by_name(user_name):
@@ -61,6 +64,9 @@ async def add_new_user(req: sanic_request):
 
     if not user_dict:
         return sanic_json({"code": 2002, "status": None, "msg": f'输入非法！request.json：{req.json}，请检查！'})
+
+    print(f"user_dict: {user_dict}, type: {type(user_dict)}")
+
     if type(user_dict) == str:
         try:
             user_dict_str = user_dict
@@ -68,6 +74,7 @@ async def add_new_user(req: sanic_request):
         except Exception as e:
             logging.error("[ERROR] user_dict is not a valid json string")
             return sanic_json({"code": 2003, "status": None, "msg": f'user_dict内容缺失！request.json：{req.json}，请检查！'})
+
     if type(user_dict) != dict:
         return sanic_json({"code": 2003, "status": None, "msg": f'user_dict格式错误！request.json：{req.json}，请检查！'})
 
@@ -79,9 +86,14 @@ async def add_new_user(req: sanic_request):
             return sanic_json({"code": 2003, "status": None, "msg": f'user_dict内容缺失！request.json：{req.json}，请检查！'})
 
     # value of height, weight, age should be int, group should be str, allergy should be str
-    if not isinstance(user_dict['height'], int) or not isinstance(user_dict['weight'], int) or not isinstance(user_dict['age'], int) or not isinstance(user_dict['group'], str) or not isinstance(user_dict['allergy'], str):
+    try:
+        user_dict['height'] = int(user_dict['height'])
+        user_dict['weight'] = int(user_dict['weight'])
+        user_dict['age'] = int(user_dict['age'])
+        user_dict['group'] = str(user_dict['group'])
+        user_dict['allergy'] = str(user_dict['allergy'])
+    except Exception as e:
         return sanic_json({"code": 2003, "status": None, "msg": f'user_dict_value错误！request.json：{req.json}，请检查！'})
-
 
     # generate user_id
     user_id = 'U' + uuid.uuid4().hex
@@ -180,8 +192,11 @@ async def analyze_nutrition(req: sanic_request):
     pdf = create_pdf(result['food_dict'], result['total_nutrition'])
     encode_pdf = base64.b64encode(pdf.read()).decode('utf-8')
 
-    # add to history
-    add_history(user_id, result)
+    if result['food_dict']:
+        # add to history
+        add_history(user_id, result)
+    else:
+        encode_pdf = base64.b64encode(b'No food found in your photo, please take another one!').decode('utf-8')
 
     return sanic_json({"code": 200, "status": True, "msg": "success analyze nutrition", "data": encode_pdf})
 
@@ -200,28 +215,28 @@ def add_history(user_id, nutrition_dict):
             logging.error("[ERROR] nutrition_dict is not a valid json string")
 
     if type(nutrition_dict) != dict:
-        return sanic_json({"code": 2002, "status": None, "msg": f'nutrition_dict格式错误！request.json：{req.json}，请检查！'})
+        return sanic_json({"code": 2002, "status": None, "msg": f'nutrition_dict格式错误: {nutrition_dict}！'})
 
     #value in dict can not be null
     if not nutrition_dict.get('food_dict', None):
-        return sanic_json({"code": 2002, "status": None, "msg": f'nutrition_dict内容缺失！request.json：{req.json}，请检查！'})
+        return sanic_json({"code": 2002, "status": None, "msg": f'nutrition_dict内容缺失！: {nutrition_dict}'})
 
     if not nutrition_dict.get('total_nutrition', None):
-        return sanic_json({"code": 2002, "status": None, "msg": f'nutrition_dict内容缺失！request.json：{req.json}，请检查！'})
+        return sanic_json({"code": 2002, "status": None, "msg": f'nutrition_dict内容缺失: {nutrition_dict}'})
 
     df = pd.read_csv(FOOD_NUTRITION_CSV_PATH)
     food_names_std = set(df['Food_name'].str.lower())
     food_names = set(nutrition_dict['food_dict'].keys())
 
     if len(food_names_std | food_names) != len(food_names_std):
-        return sanic_json({"code": 2002, "status": None, "msg": f'nutrition_dict[food_name]内容错误！request.json：{req.json}，请检查！'})
+        return sanic_json({"code": 2002, "status": None, "msg": f'nutrition_dict[food_name]内容错误！{nutrition_dict}，请检查！'})
 
     for key in nutrition_dict['food_dict'].keys():
         nutrition_std = {'Calories', 'Protein', 'Fat', 'Carbs', 'Calcium', 'Iron', 'VC', 'VA', 'Fiber'}
         nutrition = set(nutrition_dict['food_dict'][key].keys())
 
         if len(nutrition_std | nutrition) != len(nutrition_std):
-            return sanic_json({"code": 2002, "status": None, "msg": f'nutrition_dict[food_dict][nutrition]内容错误！request.json：{req.json}，请检查！'})
+            return sanic_json({"code": 2002, "status": None, "msg": f'nutrition_dict[food_dict][nutrition]内容错误！request.json：{nutrition_dict}，请检查！'})
 
     mysql_client.add_history_(user_id, nutrition_dict)
     logging.info("[API]-[add history] user_id: %s, nutrition_dict: %s", user_id, nutrition_dict)
