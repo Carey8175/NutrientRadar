@@ -66,7 +66,7 @@ class ModelManager:
             return data
 
         for res in sorted(results[0], key=lambda x: x.boxes.conf, reverse=True):
-            if res.boxes.conf < 0.5:
+            if res.boxes.conf < FOOD_CONFIDENCE_THRESHOLD:
                 break
 
             food_area = (res.masks.data >= 1).sum().item()
