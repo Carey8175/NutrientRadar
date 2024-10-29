@@ -182,7 +182,7 @@ async def analyze_nutrition(req: sanic_request):
         return sanic_json({"code": 2002, "status": None, "msg": f'输入非法！request.json：{req.json}，请检查！'})
 
     use_card = safe_get(req, 'use_card')
-    use_card = True if use_card == 1 else False
+    use_card = True if use_card == '1' else False
 
     logging.info("[API]-[analyze nutrition] use_card: %s", use_card)
 
