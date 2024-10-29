@@ -7,3 +7,6 @@ pymysql
 matplotlib
 reportlab
 ultralytics
+openai
+transformers
+cryptography

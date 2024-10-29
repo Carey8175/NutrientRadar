@@ -187,10 +187,15 @@ async def analyze_nutrition(req: sanic_request):
     logging.info("[API]-[analyze nutrition] use_card: %s", use_card)
 
     img = Image.open(BytesIO(base64.b64decode(img_base64_str)))
+
+    logging.info('[API]-[analyze nutrition] img processed!')
+
     result = modelmanager.analyze_nutrition(img, use_card)
+    logging.info("[API]-[analyze nutrition] Analyze nutrition result: %s", result)
 
     pdf = create_pdf(result['food_dict'], result['total_nutrition'])
     encode_pdf = base64.b64encode(pdf.read()).decode('utf-8')
+    logging.info("[API]-[analyze nutrition] pdf created!")
 
     if result['food_dict']:
         # add to history
