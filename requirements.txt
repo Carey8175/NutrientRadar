@@ -1,0 +1,9 @@
+pandas
+pillow
+pillow_heif
+sanic
+tiktoken
+pymysql
+matplotlib
+reportlab
+ultralytics
