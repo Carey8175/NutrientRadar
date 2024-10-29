@@ -126,7 +126,7 @@ class MySQLClient:
             CREATE TABLE IF NOT EXISTS NutrientHistory (
                 user_id VARCHAR(255),
                 Datetime TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FoodClasses VARCHAR(1024),
+                FoodClasses VARCHAR(5120),
                 Calories DECIMAL(10, 2),
                 Protein DECIMAL(10, 2),
                 Fat  DECIMAL(10, 2),
